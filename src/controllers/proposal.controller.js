@@ -257,7 +257,8 @@ export const getMyProposals = async (req, res, next) => {
 
     const proposals = await Proposal.find({ freelancer: freelancerId })
       .populate('gig', 'title description budget client status')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     return res.status(200).json({
       success: true,
@@ -295,7 +296,8 @@ export const getProposalsForGig = async (req, res, next) => {
     // 2. Fetch proposals (except withdrawn proposals, unless requested)
     const proposals = await Proposal.find({ gig: gigId, status: { $ne: 'Withdrawn' } })
       .populate('freelancer', 'name email avatar')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     return res.status(200).json({
       success: true,

@@ -63,10 +63,16 @@ export const updateUserProfile = async (req, res, next) => {
       }
     }
 
-    // 6. Handle Avatar File Upload via Cloudinary
+    // 6. Handle Avatar File Upload via Cloudinary (with compression, auto-format, and crop resizing)
     if (req.files?.avatar?.[0]) {
       const avatarLocalPath = req.files.avatar[0].path;
-      const cloudinaryResponse = await uploadToCloudinary(avatarLocalPath);
+      const cloudinaryResponse = await uploadToCloudinary(avatarLocalPath, {
+        folder: 'avatars',
+        transformation: [
+          { width: 250, height: 250, crop: 'fill', gravity: 'face' },
+          { quality: 'auto', fetch_format: 'auto' },
+        ],
+      });
       if (cloudinaryResponse?.secure_url) {
         user.avatar = cloudinaryResponse.secure_url;
       }

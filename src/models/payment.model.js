@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import cacheService from '../services/cache.service.js';
 
 const paymentSchema = new mongoose.Schema(
   {
@@ -66,8 +67,17 @@ const paymentSchema = new mongoose.Schema(
   }
 );
 
+paymentSchema.post('save', function (doc) {
+  cacheService.del(`analytics:client:${doc.sender}`);
+  cacheService.del(`analytics:freelancer:${doc.recipient}`);
+  cacheService.del('admin:analytics');
+});
+
 // Indexes to speed up history queries
 paymentSchema.index({ sender: 1, recipient: 1, createdAt: -1 });
+
+paymentSchema.index({ gig: 1 });
+paymentSchema.index({ milestoneId: 1 });
 
 const Payment = mongoose.model('Payment', paymentSchema);
 export default Payment;

@@ -61,5 +61,9 @@ const disputeSchema = new mongoose.Schema(
 
 disputeSchema.index({ raisedBy: 1, againstUser: 1, createdAt: -1 });
 
+disputeSchema.index({ gig: 1 });
+disputeSchema.index({ raisedBy: 1 });
+disputeSchema.index({ againstUser: 1 });
+
 const Dispute = mongoose.model('Dispute', disputeSchema);
 export default Dispute;

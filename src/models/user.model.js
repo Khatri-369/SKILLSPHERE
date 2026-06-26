@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import bcryptjs from 'bcryptjs';
 import jsonwebtoken from 'jsonwebtoken';
 import crypto from 'crypto';
+import cacheService from '../services/cache.service.js';
 
 const userSchema = new mongoose.Schema(
   {
@@ -186,6 +187,14 @@ userSchema.methods.generateForgotPasswordToken = function () {
   // 4. Return the raw token so it can be emailed to the user
   return rawResetToken;
 };
+
+userSchema.post('save', function (doc) {
+  cacheService.del('admin:analytics');
+  cacheService.del(`analytics:freelancer:${doc._id}`);
+  cacheService.del(`analytics:client:${doc._id}`);
+});
+
+userSchema.index({ role: 1 });
 
 const User = mongoose.model('User', userSchema);
 export default User;

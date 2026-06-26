@@ -26,7 +26,7 @@ if (isCloudinaryConfigured) {
  * @param {string} localFilePath - Path to the file on local disk
  * @returns {Promise<object>} Cloudinary upload response or mock object
  */
-export const uploadToCloudinary = async (localFilePath) => {
+export const uploadToCloudinary = async (localFilePath, options = {}) => {
   try {
     if (!localFilePath) return null;
 
@@ -51,6 +51,7 @@ export const uploadToCloudinary = async (localFilePath) => {
     // 2. Perform Real Cloudinary Upload
     const response = await cloudinary.uploader.upload(localFilePath, {
       resource_type: 'auto', // Detects image/document automatically
+      ...options,
     });
 
     // 3. Clean up the local temporary file from disk

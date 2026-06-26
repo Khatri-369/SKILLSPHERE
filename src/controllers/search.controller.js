@@ -1,5 +1,6 @@
 import FreelancerProfile from '../models/freelancerProfile.model.js';
 import Gig from '../models/gig.model.js';
+import { escapeRegex } from '../utils/security.js';
 
 /**
  * Advanced Search Freelancers
@@ -28,7 +29,43 @@ export const searchFreelancers = async (req, res, next) => {
 
     const pipeline = [];
 
-    // 1. Join owner details from users collection
+    // 1. Build pre-lookup filter match stage (fields native to FreelancerProfile schema)
+    const preMatchStage = {};
+
+    // Filter by skills
+    if (skills) {
+      const skillList = typeof skills === 'string'
+        ? skills.split(',').map((s) => s.trim()).filter(Boolean)
+        : Array.isArray(skills) ? skills : [];
+      if (skillList.length > 0) {
+        preMatchStage.skills = { $in: skillList.map((s) => new RegExp(`^${escapeRegex(s)}$`, 'i')) };
+      }
+    }
+
+    // Filter by budget/hourlyRate range
+    if (minRate !== undefined || maxRate !== undefined) {
+      preMatchStage.hourlyRate = {};
+      if (minRate !== undefined) preMatchStage.hourlyRate.$gte = Number(minRate);
+      if (maxRate !== undefined) preMatchStage.hourlyRate.$lte = Number(maxRate);
+    }
+
+    // Filter by rating range
+    if (minRating !== undefined || maxRating !== undefined) {
+      preMatchStage.rating = {};
+      if (minRating !== undefined) preMatchStage.rating.$gte = Number(minRating);
+      if (maxRating !== undefined) preMatchStage.rating.$lte = Number(maxRating);
+    }
+
+    // Filter by availability
+    if (availability) {
+      preMatchStage.availability = availability;
+    }
+
+    if (Object.keys(preMatchStage).length > 0) {
+      pipeline.push({ $match: preMatchStage });
+    }
+
+    // 2. Join owner details from users collection (only for documents that pass the pre-lookup filters)
     pipeline.push({
       $lookup: {
         from: 'users',
@@ -38,64 +75,38 @@ export const searchFreelancers = async (req, res, next) => {
       },
     });
 
-    // 2. Unwind ownerDetails (always exists since profile has required owner field)
+    // 3. Unwind ownerDetails
     pipeline.push({
       $unwind: '$ownerDetails',
     });
 
-    // 3. Build dynamic match/filter stages
-    const matchStage = {};
+    // 4. Build post-lookup filter match stage (fields belonging to the joined users collection or experience timelines)
+    const postMatchStage = {};
 
     // Filter by location (case-insensitive regex)
     if (location) {
-      matchStage['ownerDetails.location'] = { $regex: location, $options: 'i' };
-    }
-
-    // Filter by skills
-    if (skills) {
-      const skillList = typeof skills === 'string'
-        ? skills.split(',').map((s) => s.trim()).filter(Boolean)
-        : Array.isArray(skills) ? skills : [];
-      if (skillList.length > 0) {
-        matchStage.skills = { $in: skillList.map((s) => new RegExp(`^${s}$`, 'i')) };
-      }
-    }
-
-    // Filter by budget/hourlyRate range
-    if (minRate !== undefined || maxRate !== undefined) {
-      matchStage.hourlyRate = {};
-      if (minRate !== undefined) matchStage.hourlyRate.$gte = Number(minRate);
-      if (maxRate !== undefined) matchStage.hourlyRate.$lte = Number(maxRate);
-    }
-
-    // Filter by rating range
-    if (minRating !== undefined || maxRating !== undefined) {
-      matchStage.rating = {};
-      if (minRating !== undefined) matchStage.rating.$gte = Number(minRating);
-      if (maxRating !== undefined) matchStage.rating.$lte = Number(maxRating);
-    }
-
-    // Filter by availability
-    if (availability) {
-      matchStage.availability = availability;
+      postMatchStage['ownerDetails.location'] = { $regex: escapeRegex(location), $options: 'i' };
     }
 
     // Filter by experience details in timeline (case-insensitive title search)
     if (experience) {
-      matchStage['experienceTimeline.title'] = { $regex: experience, $options: 'i' };
+      postMatchStage['experienceTimeline.title'] = { $regex: escapeRegex(experience), $options: 'i' };
     }
 
     // Search query matches name, bio, or skills
     const searchQuery = search || q;
     if (searchQuery) {
-      matchStage.$or = [
-        { 'ownerDetails.name': { $regex: searchQuery, $options: 'i' } },
-        { 'ownerDetails.bio': { $regex: searchQuery, $options: 'i' } },
-        { skills: { $regex: searchQuery, $options: 'i' } },
+      const escapedQuery = escapeRegex(searchQuery);
+      postMatchStage.$or = [
+        { 'ownerDetails.name': { $regex: escapedQuery, $options: 'i' } },
+        { 'ownerDetails.bio': { $regex: escapedQuery, $options: 'i' } },
+        { skills: { $regex: escapedQuery, $options: 'i' } },
       ];
     }
 
-    pipeline.push({ $match: matchStage });
+    if (Object.keys(postMatchStage).length > 0) {
+      pipeline.push({ $match: postMatchStage });
+    }
 
     // 4. Build sorting criteria
     const sortStage = {};
@@ -184,7 +195,7 @@ export const searchGigs = async (req, res, next) => {
 
     // Filter by location
     if (location) {
-      matchStage.location = { $regex: location, $options: 'i' };
+      matchStage.location = { $regex: escapeRegex(location), $options: 'i' };
     }
 
     // Filter by budget range
@@ -196,7 +207,7 @@ export const searchGigs = async (req, res, next) => {
 
     // Filter by category
     if (category) {
-      matchStage.category = { $regex: category, $options: 'i' };
+      matchStage.category = { $regex: escapeRegex(category), $options: 'i' };
     }
 
     // Filter by skills
@@ -205,17 +216,18 @@ export const searchGigs = async (req, res, next) => {
         ? skills.split(',').map((s) => s.trim()).filter(Boolean)
         : Array.isArray(skills) ? skills : [];
       if (skillList.length > 0) {
-        matchStage.skillsRequired = { $in: skillList.map((s) => new RegExp(`^${s}$`, 'i')) };
+        matchStage.skillsRequired = { $in: skillList.map((s) => new RegExp(`^${escapeRegex(s)}$`, 'i')) };
       }
     }
 
     // General text search on title, description, category
     const searchQuery = search || q;
     if (searchQuery) {
+      const escapedQuery = escapeRegex(searchQuery);
       matchStage.$or = [
-        { title: { $regex: searchQuery, $options: 'i' } },
-        { description: { $regex: searchQuery, $options: 'i' } },
-        { category: { $regex: searchQuery, $options: 'i' } },
+        { title: { $regex: escapedQuery, $options: 'i' } },
+        { description: { $regex: escapedQuery, $options: 'i' } },
+        { category: { $regex: escapedQuery, $options: 'i' } },
       ];
     }
 

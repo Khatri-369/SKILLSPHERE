@@ -3,6 +3,9 @@ import Gig from '../models/gig.model.js';
 import FreelancerProfile from '../models/freelancerProfile.model.js';
 import Payment from '../models/payment.model.js';
 import mongoose from 'mongoose';
+import { escapeRegex } from '../utils/security.js';
+import cacheService from '../services/cache.service.js';
+
 
 /**
  * Get all users list with pagination, search, and role/suspension filtering
@@ -18,9 +21,10 @@ export const getAllUsers = async (req, res, next) => {
     const query = {};
 
     if (search) {
+      const escapedSearch = escapeRegex(search);
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
+        { name: { $regex: escapedSearch, $options: 'i' } },
+        { email: { $regex: escapedSearch, $options: 'i' } },
       ];
     }
 
@@ -36,7 +40,8 @@ export const getAllUsers = async (req, res, next) => {
       .select('-password -refreshToken -emailVerificationToken -emailVerificationExpiry -forgotPasswordToken -forgotPasswordExpiry')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     const total = await User.countDocuments(query);
 
@@ -116,7 +121,7 @@ export const getAllGigs = async (req, res, next) => {
     const query = {};
 
     if (search) {
-      query.title = { $regex: search, $options: 'i' };
+      query.title = { $regex: escapeRegex(search), $options: 'i' };
     }
 
     if (category) {
@@ -135,7 +140,8 @@ export const getAllGigs = async (req, res, next) => {
       .populate('client', 'name email')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     const total = await Gig.countDocuments(query);
 
@@ -237,6 +243,16 @@ export const toggleFreelancerVerification = async (req, res, next) => {
  */
 export const getDashboardAnalytics = async (req, res, next) => {
   try {
+    const cacheKey = 'admin:analytics';
+    const cachedData = cacheService.get(cacheKey);
+    if (cachedData) {
+      return res.status(200).json({
+        success: true,
+        message: 'Dashboard analytics retrieved successfully',
+        data: cachedData,
+      });
+    }
+
     // 1. Total Revenue
     const revenueResult = await Payment.aggregate([
       { $match: { status: 'Paid' } },
@@ -342,16 +358,20 @@ export const getDashboardAnalytics = async (req, res, next) => {
       count: c.count,
     }));
 
+    const analyticsData = {
+      totalRevenue: Math.round(totalRevenue * 100) / 100,
+      activeFreelancers: activeFreelancersCount,
+      revenueTimeline,
+      monthlyUsers,
+      topCategories,
+    };
+
+    cacheService.set(cacheKey, analyticsData, 300); // 5 minutes cache
+
     return res.status(200).json({
       success: true,
       message: 'Dashboard analytics retrieved successfully',
-      data: {
-        totalRevenue: Math.round(totalRevenue * 100) / 100,
-        activeFreelancers: activeFreelancersCount,
-        revenueTimeline,
-        monthlyUsers,
-        topCategories,
-      },
+      data: analyticsData,
     });
   } catch (error) {
     next(error);

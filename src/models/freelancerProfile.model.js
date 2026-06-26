@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import cacheService from '../services/cache.service.js';
 
 const experienceTimelineSchema = new mongoose.Schema({
   title: {
@@ -90,6 +91,14 @@ const freelancerProfileSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+freelancerProfileSchema.post('save', function (doc) {
+  cacheService.del(`analytics:freelancer:${doc.owner}`);
+});
+
+freelancerProfileSchema.index({ skills: 1 });
+freelancerProfileSchema.index({ availability: 1 });
+freelancerProfileSchema.index({ hourlyRate: 1 });
 
 const FreelancerProfile = mongoose.model('FreelancerProfile', freelancerProfileSchema);
 export default FreelancerProfile;

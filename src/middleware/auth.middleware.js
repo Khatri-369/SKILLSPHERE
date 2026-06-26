@@ -15,8 +15,10 @@ export const verifyJWT = async (req, res, next) => {
       return next(error);
     }
 
-    // 2. Verify token content
-    const decoded = jsonwebtoken.verify(token, config.accessTokenSecret);
+    // 2. Verify token content (explicitly checking valid algorithms to prevent confusion/override attacks)
+    const decoded = jsonwebtoken.verify(token, config.accessTokenSecret, {
+      algorithms: ['HS256'],
+    });
 
     // 3. Find the user in the database
     const user = await User.findById(decoded._id).select('-password -refreshToken');

@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import cacheService from '../services/cache.service.js';
 
 const milestoneSchema = new mongoose.Schema({
   title: {
@@ -80,6 +81,15 @@ const gigSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+gigSchema.post('save', function (doc) {
+  cacheService.del(`analytics:client:${doc.client}`);
+  cacheService.del('admin:analytics');
+});
+
+gigSchema.index({ client: 1 });
+gigSchema.index({ category: 1, status: 1, isApproved: 1 });
+gigSchema.index({ createdAt: -1 });
 
 const Gig = mongoose.model('Gig', gigSchema);
 export default Gig;

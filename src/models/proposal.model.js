@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import cacheService from '../services/cache.service.js';
 
 const proposalSchema = new mongoose.Schema(
   {
@@ -62,8 +63,24 @@ const proposalSchema = new mongoose.Schema(
   }
 );
 
+proposalSchema.post('save', async function (doc) {
+  cacheService.del(`analytics:freelancer:${doc.freelancer}`);
+  cacheService.del('admin:analytics');
+  try {
+    const gig = await mongoose.model('Gig').findById(doc.gig).select('client').lean();
+    if (gig) {
+      cacheService.del(`analytics:client:${gig.client}`);
+    }
+  } catch (err) {
+    // Silently handle error
+  }
+});
+
 // Enforce unique application: one freelancer per gig
 proposalSchema.index({ gig: 1, freelancer: 1 }, { unique: true });
+
+proposalSchema.index({ freelancer: 1 });
+proposalSchema.index({ status: 1 });
 
 const Proposal = mongoose.model('Proposal', proposalSchema);
 export default Proposal;

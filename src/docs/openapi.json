@@ -1,0 +1,1635 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "SkillSphere API",
+    "description": "Production-level MVC backend API documentation for SkillSphere platform.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "v1 Base Endpoint"
+    }
+  ],
+  "security": [
+    {
+      "cookieAuth": []
+    },
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Register a new user",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email", "password"],
+                "properties": {
+                  "name": { "type": "string", "example": "John Doe" },
+                  "email": { "type": "string", "format": "email", "example": "john@example.com" },
+                  "password": { "type": "string", "minLength": 6, "example": "secretPassword123" },
+                  "role": { "type": "string", "enum": ["Client", "Freelancer", "Admin"], "default": "Client", "example": "Freelancer" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User registered successfully, verification email dispatched.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "User registered successfully. Please verify your email address.",
+                  "data": {
+                    "_id": "6a3e196769f9130e2b0eb012",
+                    "name": "John Doe",
+                    "email": "john@example.com",
+                    "role": "Freelancer",
+                    "isVerified": false,
+                    "isSuspended": false,
+                    "createdAt": "2026-06-26T11:49:15.000Z",
+                    "updatedAt": "2026-06-26T11:49:15.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error (missing fields, invalid email format, short password).",
+            "content": {
+              "application/json": {
+                "example": { "success": false, "message": "Name, email, and password are required" }
+              }
+            }
+          },
+          "409": {
+            "description": "User with this email already exists.",
+            "content": {
+              "application/json": {
+                "example": { "success": false, "message": "User with this email already exists" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Authenticate user and get tokens",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "john@example.com" },
+                  "password": { "type": "string", "example": "secretPassword123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful. Access and refresh tokens returned as HTTP-only cookies and in the JSON body.",
+            "headers": {
+              "Set-Cookie": {
+                "schema": { "type": "string", "example": "accessToken=eyJhbGci...; Path=/; HttpOnly; SameSite=Lax" }
+              }
+            },
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Logged in successfully",
+                  "data": {
+                    "user": {
+                      "_id": "6a3e196769f9130e2b0eb012",
+                      "name": "John Doe",
+                      "email": "john@example.com",
+                      "role": "Freelancer",
+                      "isVerified": true,
+                      "isSuspended": false
+                    },
+                    "accessToken": "eyJhbGciOiJIUzI1NiIsIn...",
+                    "refreshToken": "eyJhbGciOiJIUzI1NiIsIn..."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials.",
+            "content": {
+              "application/json": {
+                "example": { "success": false, "message": "Invalid email or password" }
+              }
+            }
+          },
+          "403": {
+            "description": "Email not verified or account suspended.",
+            "content": {
+              "application/json": {
+                "example": { "success": false, "message": "Please verify your email before logging in" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh-token": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Refresh expired access token",
+        "security": [],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "refreshToken": { "type": "string", "example": "eyJhbGciOiJIUzI1NiIsIn..." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tokens refreshed successfully.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Access token refreshed successfully",
+                  "data": {
+                    "accessToken": "eyJhbGciOiJIUzI1NiIsIn...",
+                    "refreshToken": "eyJhbGciOiJIUzI1NiIsIn..."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or expired refresh token.",
+            "content": {
+              "application/json": {
+                "example": { "success": false, "message": "Invalid or expired refresh token" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/verify-email": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Verify email via token",
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Email verification token"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Email verified successfully.",
+            "content": {
+              "application/json": {
+                "example": { "success": true, "message": "Email verified successfully. You can now log in." }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or expired token.",
+            "content": {
+              "application/json": {
+                "example": { "success": false, "message": "Invalid or expired verification token" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/resend-verification": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Resend verification email",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "john@example.com" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verification email dispatched.",
+            "content": {
+              "application/json": {
+                "example": { "success": true, "message": "Verification email sent successfully." }
+              }
+            }
+          },
+          "400": {
+            "description": "Email already verified or user not found.",
+            "content": {
+              "application/json": {
+                "example": { "success": false, "message": "This account is already verified" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/forgot-password": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Request password reset token",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "john@example.com" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reset token sent successfully.",
+            "content": {
+              "application/json": {
+                "example": { "success": true, "message": "Password reset token sent to email" }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found.",
+            "content": {
+              "application/json": {
+                "example": { "success": false, "message": "User with this email does not exist" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Reset password using reset token",
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Password reset token sent to email"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["password"],
+                "properties": {
+                  "password": { "type": "string", "minLength": 6, "example": "newSecretPassword123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset successful.",
+            "content": {
+              "application/json": {
+                "example": { "success": true, "message": "Password reset successfully. You can now log in." }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or expired token.",
+            "content": {
+              "application/json": {
+                "example": { "success": false, "message": "Password reset token is invalid or has expired" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Logout current user and clear sessions",
+        "responses": {
+          "200": {
+            "description": "Logged out successfully.",
+            "content": {
+              "application/json": {
+                "example": { "success": true, "message": "Logged out successfully" }
+              }
+            }
+          },
+          "401": {
+            "description": "Access token not provided or invalid."
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Get logged-in user profile details",
+        "responses": {
+          "200": {
+            "description": "Retrieved current user data successfully.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "User details fetched successfully",
+                  "data": {
+                    "_id": "6a3e196769f9130e2b0eb012",
+                    "name": "John Doe",
+                    "email": "john@example.com",
+                    "role": "Freelancer",
+                    "isVerified": true,
+                    "isSuspended": false
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Access token missing or invalid."
+          }
+        }
+      }
+    },
+    "/auth/google": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Initiate Google OAuth flow",
+        "security": [],
+        "responses": {
+          "302": {
+            "description": "Redirects user to Google OAuth server authentication page."
+          }
+        }
+      }
+    },
+    "/auth/google/callback": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Google OAuth OAuth Redirect Callback",
+        "security": [],
+        "responses": {
+          "302": {
+            "description": "Redirects back to frontend with attached session cookie."
+          }
+        }
+      }
+    },
+    "/users/profile": {
+      "patch": {
+        "tags": ["Users"],
+        "summary": "Update user core details and upload credentials",
+        "description": "Supports updating bio, location, languages, experience, education, and uploading files.",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "bio": { "type": "string", "example": "Fullstack Node developer with 5 years experience." },
+                  "location": { "type": "string", "example": "San Francisco, CA" },
+                  "languages": { "type": "string", "example": "[\"English\", \"Spanish\"]" },
+                  "experience": { "type": "string", "description": "JSON array string", "example": "[{\"title\":\"Backend Engineer\",\"company\":\"Google\",\"duration\":\"3 years\"}]" },
+                  "education": { "type": "string", "description": "JSON array string", "example": "[{\"degree\":\"B.S. Computer Science\",\"school\":\"Stanford University\",\"year\":\"2021\"}]" },
+                  "avatar": { "type": "string", "format": "binary", "description": "Avatar image file upload" },
+                  "resume": { "type": "string", "format": "binary", "description": "Resume PDF file upload" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated successfully.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Profile updated successfully",
+                  "data": {
+                    "_id": "6a3e196769f9130e2b0eb012",
+                    "name": "John Doe",
+                    "email": "john@example.com",
+                    "role": "Freelancer",
+                    "bio": "Fullstack Node developer with 5 years experience.",
+                    "location": "San Francisco, CA",
+                    "avatarUrl": "https://cloudinary.com/avatar_mock_url.png",
+                    "resumeUrl": "https://cloudinary.com/resume_mock_url.pdf",
+                    "languages": ["English", "Spanish"]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error (invalid experience/education JSON format).",
+            "content": {
+              "application/json": {
+                "example": { "success": false, "message": "Invalid experience format. Must be a valid JSON array." }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized access token."
+          }
+        }
+      }
+    },
+    "/freelancers/me": {
+      "get": {
+        "tags": ["Freelancers"],
+        "summary": "Get freelancer specific profile (Freelancer role only)",
+        "responses": {
+          "200": {
+            "description": "Freelancer profile fetched successfully.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Freelancer profile fetched successfully",
+                  "data": {
+                    "_id": "6a3e196869f9130e2b0eb044",
+                    "owner": "6a3e196769f9130e2b0eb012",
+                    "skills": ["react", "redux"],
+                    "skillLevel": "Expert",
+                    "availability": "Available",
+                    "hourlyRate": 50,
+                    "rating": 4.8,
+                    "reviewsCount": 12
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Profile not found.",
+            "content": {
+              "application/json": {
+                "example": { "success": false, "message": "Freelancer profile not found" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/freelancers/{userId}": {
+      "get": {
+        "tags": ["Freelancers"],
+        "summary": "Get a freelancer profile by user ID (Publicly accessible)",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The unique ID of the user owner"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profile retrieved successfully."
+          },
+          "404": {
+            "description": "Freelancer profile not found."
+          }
+        }
+      }
+    },
+    "/freelancers": {
+      "post": {
+        "tags": ["Freelancers"],
+        "summary": "Create freelancer profile (Freelancer role only)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["skills", "hourlyRate"],
+                "properties": {
+                  "skills": { "type": "array", "items": { "type": "string" }, "example": ["Node.js", "Express", "MongoDB"] },
+                  "skillLevel": { "type": "string", "enum": ["Beginner", "Intermediate", "Expert"], "default": "Intermediate", "example": "Expert" },
+                  "hourlyRate": { "type": "number", "minimum": 0, "example": 45 },
+                  "availability": { "type": "string", "enum": ["Available", "Busy", "Part-time"], "default": "Available", "example": "Part-time" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Profile created successfully."
+          },
+          "400": {
+            "description": "Hourly rate negative or required field missing."
+          }
+        }
+      },
+      "patch": {
+        "tags": ["Freelancers"],
+        "summary": "Update freelancer profile (Freelancer role only)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "skills": { "type": "array", "items": { "type": "string" }, "example": ["Python", "Django"] },
+                  "hourlyRate": { "type": "number", "example": 55 },
+                  "availability": { "type": "string", "example": "Busy" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated successfully."
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Freelancers"],
+        "summary": "Delete freelancer profile (Freelancer role only)",
+        "responses": {
+          "200": {
+            "description": "Profile deleted successfully."
+          }
+        }
+      }
+    },
+    "/gigs": {
+      "post": {
+        "tags": ["Gigs"],
+        "summary": "Create a new gig (Client role only)",
+        "description": "Create a new contract listing with optional asset attachments.",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "description", "budget", "category", "deadline"],
+                "properties": {
+                  "title": { "type": "string", "example": "React developer needed for quick landing page" },
+                  "description": { "type": "string", "example": "Need clean responsive code in 5 days." },
+                  "budget": { "type": "number", "minimum": 1, "example": 500 },
+                  "category": { "type": "string", "example": "Web Dev" },
+                  "deadline": { "type": "string", "format": "date", "example": "2026-12-31" },
+                  "skillsRequired": { "type": "string", "description": "Comma separated string", "example": "react,css,html" },
+                  "attachments": { "type": "array", "items": { "type": "string", "format": "binary" } }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Gig draft created successfully.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Gig created successfully",
+                  "data": {
+                    "_id": "6a3e196869f9130e2b0eb02d",
+                    "client": "6a3e196769f9130e2b0eb012",
+                    "title": "React developer needed for quick landing page",
+                    "description": "Need clean responsive code in 5 days.",
+                    "budget": 500,
+                    "category": "Web Dev",
+                    "status": "Draft",
+                    "skillsRequired": ["react", "css", "html"],
+                    "deadline": "2026-12-31T00:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing parameters or negative budget.",
+            "content": {
+              "application/json": {
+                "example": { "success": false, "message": "Title, description, budget, category, and deadline are required" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gigs/{gigId}": {
+      "patch": {
+        "tags": ["Gigs"],
+        "summary": "Edit gig details (Client role only, owner checking)",
+        "parameters": [
+          { "name": "gigId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string", "example": "Updated React dev task" },
+                  "budget": { "type": "number", "example": 600 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Gig details updated successfully."
+          },
+          "403": {
+            "description": "Access denied. You do not own this gig."
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Gigs"],
+        "summary": "Delete gig (Client role only, owner checking)",
+        "parameters": [
+          { "name": "gigId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Gig deleted successfully."
+          }
+        }
+      }
+    },
+    "/gigs/{gigId}/publish": {
+      "patch": {
+        "tags": ["Gigs"],
+        "summary": "Publish draft gig (Client role only, owner checking)",
+        "parameters": [
+          { "name": "gigId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Gig published successfully.",
+            "content": {
+              "application/json": {
+                "example": { "success": true, "message": "Gig published successfully", "data": { "status": "Published" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/gigs/{gigId}/close": {
+      "patch": {
+        "tags": ["Gigs"],
+        "summary": "Close gig to stop applications (Client role only, owner checking)",
+        "parameters": [
+          { "name": "gigId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Gig closed successfully.",
+            "content": {
+              "application/json": {
+                "example": { "success": true, "message": "Gig closed successfully", "data": { "status": "Closed" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/search/gigs": {
+      "get": {
+        "tags": ["Search"],
+        "summary": "Advanced query search & filter gigs (Publicly accessible)",
+        "security": [],
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" }, "description": "Search keyword matching title/description" },
+          { "name": "category", "in": "query", "schema": { "type": "string" }, "description": "Filter by category" },
+          { "name": "minBudget", "in": "query", "schema": { "type": "integer" } },
+          { "name": "maxBudget", "in": "query", "schema": { "type": "integer" } },
+          { "name": "skills", "in": "query", "schema": { "type": "string" }, "description": "Comma-separated list of required skills" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Gigs fetched successfully.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Gigs search completed successfully",
+                  "data": {
+                    "gigs": [
+                      {
+                        "_id": "6a3e196869f9130e2b0eb02d",
+                        "title": "React developer needed",
+                        "budget": 500,
+                        "category": "Web Dev"
+                      }
+                    ],
+                    "pagination": { "total": 1, "page": 1, "limit": 10, "pages": 1 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/search/freelancers": {
+      "get": {
+        "tags": ["Search"],
+        "summary": "Advanced query search & filter freelancers (Publicly accessible)",
+        "security": [],
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" }, "description": "Keyword matching bio/skills" },
+          { "name": "skills", "in": "query", "schema": { "type": "string" }, "description": "Comma separated skills filter" },
+          { "name": "availability", "in": "query", "schema": { "type": "string" }, "description": "Available, Busy, Part-time" },
+          { "name": "minRate", "in": "query", "schema": { "type": "integer" } },
+          { "name": "maxRate", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Freelancers list fetched successfully."
+          }
+        }
+      }
+    },
+    "/proposals/me": {
+      "get": {
+        "tags": ["Proposals"],
+        "summary": "Get self proposals (Freelancer role only)",
+        "responses": {
+          "200": { "description": "Freelancer proposals retrieved successfully." }
+        }
+      }
+    },
+    "/proposals/gig/{gigId}": {
+      "get": {
+        "tags": ["Proposals"],
+        "summary": "Get proposals for a specific gig (Client/Admin only)",
+        "parameters": [
+          { "name": "gigId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Proposals list retrieved successfully." }
+        }
+      }
+    },
+    "/proposals": {
+      "post": {
+        "tags": ["Proposals"],
+        "summary": "Submit proposal on a gig (Freelancer role only)",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["gig", "coverLetter", "bidAmount", "milestones"],
+                "properties": {
+                  "gig": { "type": "string", "example": "6a3e196869f9130e2b0eb02d", "description": "Gig ObjectId" },
+                  "coverLetter": { "type": "string", "example": "I have extensive experience with building React applications." },
+                  "bidAmount": { "type": "number", "example": 450 },
+                  "milestones": { "type": "string", "description": "JSON string of array of milestones", "example": "[{\"title\":\"Setup design\",\"amount\":150,\"dueDate\":\"2026-07-31\"},{\"title\":\"Coding phase\",\"amount\":300,\"dueDate\":\"2026-08-31\"}]" },
+                  "attachments": { "type": "array", "items": { "type": "string", "format": "binary" } }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Proposal submitted successfully.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Proposal submitted successfully",
+                  "data": {
+                    "_id": "6a3e1969015cccae697fca5d",
+                    "gig": "6a3e196869f9130e2b0eb02d",
+                    "freelancer": "6a3e196769f9130e2b0eb012",
+                    "bidAmount": 450,
+                    "status": "Submitted",
+                    "milestones": [
+                      { "title": "Setup design", "amount": 150, "status": "Pending" },
+                      { "title": "Coding phase", "amount": 300, "status": "Pending" }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proposals/{proposalId}": {
+      "get": {
+        "tags": ["Proposals"],
+        "summary": "Get details of a single proposal",
+        "parameters": [
+          { "name": "proposalId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Proposal details retrieved successfully." }
+        }
+      },
+      "patch": {
+        "tags": ["Proposals"],
+        "summary": "Edit proposal details (Freelancer role only, owner checking)",
+        "parameters": [
+          { "name": "proposalId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "coverLetter": { "type": "string" },
+                  "bidAmount": { "type": "number" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Proposal updated successfully." }
+        }
+      }
+    },
+    "/proposals/{proposalId}/withdraw": {
+      "patch": {
+        "tags": ["Proposals"],
+        "summary": "Withdraw a submitted proposal (Freelancer role only)",
+        "parameters": [
+          { "name": "proposalId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Proposal status changed to Withdrawn." }
+        }
+      }
+    },
+    "/proposals/{proposalId}/accept": {
+      "patch": {
+        "tags": ["Proposals"],
+        "summary": "Accept proposal and create contract (Client role only, owner checking)",
+        "parameters": [
+          { "name": "proposalId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proposal accepted and contract established.",
+            "content": {
+              "application/json": {
+                "example": { "success": true, "message": "Proposal accepted. Contract created." }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/proposals/{proposalId}/reject": {
+      "patch": {
+        "tags": ["Proposals"],
+        "summary": "Decline proposal (Client role only, owner checking)",
+        "parameters": [
+          { "name": "proposalId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Proposal declined successfully." }
+        }
+      }
+    },
+    "/proposals/{proposalId}/negotiate": {
+      "patch": {
+        "tags": ["Proposals"],
+        "summary": "Negotiate and submit a counter offer (Client role only, owner checking)",
+        "parameters": [
+          { "name": "proposalId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["bidAmount", "milestones"],
+                "properties": {
+                  "bidAmount": { "type": "number", "example": 400 },
+                  "milestones": { "type": "array", "items": { "type": "object" }, "example": "[{\"title\":\"Done\",\"amount\":400}]" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Counter offer proposal dispatched, status changed to UnderNegotiation." }
+        }
+      }
+    },
+    "/proposals/{proposalId}/negotiate/respond": {
+      "patch": {
+        "tags": ["Proposals"],
+        "summary": "Accept/Decline negotiation counter-offer (Freelancer role only, owner checking)",
+        "parameters": [
+          { "name": "proposalId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["action"],
+                "properties": {
+                  "action": { "type": "string", "enum": ["accept", "decline"], "example": "accept" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Action processed. If accepted, status changes to Accepted." }
+        }
+      }
+    },
+    "/recommendations/gigs/{gigId}/freelancers": {
+      "get": {
+        "tags": ["Recommendations"],
+        "summary": "Auto-match recommended freelancers for a gig based on skills (Client/Admin only)",
+        "parameters": [
+          { "name": "gigId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recommended freelancers successfully computed and returned."
+          }
+        }
+      }
+    },
+    "/chat/history/{userId}": {
+      "get": {
+        "tags": ["Chat"],
+        "summary": "Fetch chat history with a specific user",
+        "parameters": [
+          { "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Conversations history list retrieved." }
+        }
+      }
+    },
+    "/chat/upload-image": {
+      "post": {
+        "tags": ["Chat"],
+        "summary": "Upload a chat attachment image file",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["image"],
+                "properties": {
+                  "image": { "type": "string", "format": "binary" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Image uploaded successfully to Cloudinary.",
+            "content": {
+              "application/json": {
+                "example": { "success": true, "message": "Image uploaded successfully", "data": { "url": "https://res.cloudinary.com/...image.jpg" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "Get notification feed for user (Paginated)",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notifications feed list retrieved.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Notifications fetched successfully",
+                  "data": {
+                    "notifications": [
+                      {
+                        "_id": "6a3e196d015cccae697fca91",
+                        "recipient": "6a3e196769f9130e2b0eb012",
+                        "title": "Custom Alert",
+                        "message": "System generated alert.",
+                        "type": "System",
+                        "isRead": false
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Notifications"],
+        "summary": "Dispatch custom notification (System / Admin use)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["recipient", "title", "message", "type"],
+                "properties": {
+                  "recipient": { "type": "string", "example": "6a3e196769f9130e2b0eb012" },
+                  "title": { "type": "string", "example": "Custom Alert" },
+                  "message": { "type": "string", "example": "System generated alert." },
+                  "type": { "type": "string", "enum": ["ProposalSubmitted", "ProposalAccepted", "PaymentReceived", "DisputeRaised", "System"], "example": "System" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Notification dispatched."
+          }
+        }
+      }
+    },
+    "/notifications/unread-count": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "Get total count of unread notifications",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": { "success": true, "data": { "count": 1 } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/read-all": {
+      "patch": {
+        "tags": ["Notifications"],
+        "summary": "Mark all notifications as read",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": { "success": true, "message": "All notifications marked as read" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/{notificationId}/read": {
+      "patch": {
+        "tags": ["Notifications"],
+        "summary": "Mark a specific notification as read",
+        "parameters": [
+          { "name": "notificationId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": { "success": true, "message": "Notification marked as read" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payments/webhook": {
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Razorpay public payment status webhook callback",
+        "security": [],
+        "description": "Dynamic webhook validating payload integrity using HMAC SHA256 header tags.",
+        "responses": {
+          "200": { "description": "Webhook payload recorded." }
+        }
+      }
+    },
+    "/payments/order": {
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Create Razorpay transaction order for milestone (Client role only)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["proposalId", "milestoneId"],
+                "properties": {
+                  "proposalId": { "type": "string", "example": "6a3e1969015cccae697fca5d" },
+                  "milestoneId": { "type": "string", "example": "6a3e196e7d33f0abb93fec5f" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order created successfully on Razorpay.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Razorpay order created successfully",
+                  "data": {
+                    "orderId": "order_mock_1782454638574_95059",
+                    "amount": 15000,
+                    "currency": "INR"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payments/verify": {
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Verify payment signature validity",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["razorpay_order_id", "razorpay_payment_id", "razorpay_signature"],
+                "properties": {
+                  "razorpay_order_id": { "type": "string", "example": "order_test_123" },
+                  "razorpay_payment_id": { "type": "string", "example": "pay_test_123" },
+                  "razorpay_signature": { "type": "string", "example": "abcdef123456789" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signature verified, milestone marked as Paid.",
+            "content": {
+              "application/json": {
+                "example": { "success": true, "message": "Payment verified and recorded successfully" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payments/history": {
+      "get": {
+        "tags": ["Payments"],
+        "summary": "Get billing transaction history of user",
+        "responses": {
+          "200": { "description": "Payments log array returned." }
+        }
+      }
+    },
+    "/payments/{paymentId}/refund": {
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Initiate refund for a transaction (Client/Admin only)",
+        "parameters": [
+          { "name": "paymentId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refund initialized.",
+            "content": {
+              "application/json": {
+                "example": { "success": true, "message": "Refund processed successfully" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reviews/user/{userId}": {
+      "get": {
+        "tags": ["Reviews"],
+        "summary": "Get all reviews submitted for a user profile",
+        "security": [],
+        "parameters": [
+          { "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Reviews list retrieved." }
+        }
+      }
+    },
+    "/reviews/analytics/{userId}": {
+      "get": {
+        "tags": ["Reviews"],
+        "summary": "Get star reviews analytics breakdown for a user",
+        "security": [],
+        "parameters": [
+          { "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": { "success": true, "data": { "averageRating": 4.5, "totalReviews": 10 } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reviews": {
+      "post": {
+        "tags": ["Reviews"],
+        "summary": "Submit a user review after job completion",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["reviewee", "rating", "comment"],
+                "properties": {
+                  "reviewee": { "type": "string", "example": "6a3e196769f9130e2b0eb012", "description": "User ID of target profile" },
+                  "rating": { "type": "integer", "minimum": 1, "maximum": 5, "example": 5 },
+                  "comment": { "type": "string", "example": "Incredible work, code structure is excellent!" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Review saved.",
+            "content": {
+              "application/json": {
+                "example": { "success": true, "message": "Review submitted successfully" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "tags": ["Admin Operations"],
+        "summary": "Fetch dashboard list of all accounts in the platform (Admin role only)",
+        "responses": {
+          "200": { "description": "Users list array retrieved." }
+        }
+      }
+    },
+    "/admin/users/{userId}/suspend": {
+      "patch": {
+        "tags": ["Admin Operations"],
+        "summary": "Suspend or unsuspend a user account (Admin role only)",
+        "parameters": [
+          { "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["isSuspended"],
+                "properties": {
+                  "isSuspended": { "type": "boolean", "example": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "User suspension status updated." }
+        }
+      }
+    },
+    "/admin/gigs": {
+      "get": {
+        "tags": ["Admin Operations"],
+        "summary": "Fetch dashboard list of all gigs in system (Admin role only)",
+        "responses": {
+          "200": { "description": "Gigs array retrieved." }
+        }
+      }
+    },
+    "/admin/gigs/{gigId}/approve": {
+      "patch": {
+        "tags": ["Admin Operations"],
+        "summary": "Toggle gig approval status (Admin role only)",
+        "parameters": [
+          { "name": "gigId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["isApproved"],
+                "properties": {
+                  "isApproved": { "type": "boolean", "example": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Gig approval status changed." }
+        }
+      }
+    },
+    "/admin/freelancers/{profileId}/verify": {
+      "patch": {
+        "tags": ["Admin Operations"],
+        "summary": "Verify or unverify freelancer credentials badge (Admin role only)",
+        "parameters": [
+          { "name": "profileId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["verify"],
+                "properties": {
+                  "verify": { "type": "boolean", "example": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Verification status updated." }
+        }
+      }
+    },
+    "/admin/analytics": {
+      "get": {
+        "tags": ["Admin Operations"],
+        "summary": "Get aggregate system statistics dashboard data (Admin role only)",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "data": {
+                    "usersCount": 120,
+                    "gigsCount": 85,
+                    "proposalsCount": 340,
+                    "revenue": 15000
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/disputes/me": {
+      "get": {
+        "tags": ["Disputes"],
+        "summary": "Get disputes raised by or involving the current user",
+        "responses": {
+          "200": { "description": "Disputes list retrieved." }
+        }
+      }
+    },
+    "/disputes": {
+      "get": {
+        "tags": ["Disputes"],
+        "summary": "Get all disputes in the platform (Admin role only)",
+        "responses": {
+          "200": { "description": "Global disputes array retrieved." }
+        }
+      },
+      "post": {
+        "tags": ["Disputes"],
+        "summary": "Raise a new contract dispute",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["contractId", "reason", "description"],
+                "properties": {
+                  "contractId": { "type": "string", "example": "6a3e1969015cccae697fca5d", "description": "Proposal/Contract ID" },
+                  "reason": { "type": "string", "example": "Milestone delivery does not match requirements." },
+                  "description": { "type": "string", "example": "Code uses wrong styles and crashes on startup." },
+                  "evidence": { "type": "array", "items": { "type": "string", "format": "binary" } }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Dispute successfully recorded.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Dispute raised successfully",
+                  "data": {
+                    "_id": "6a3e196d015cccae697fca99",
+                    "contract": "6a3e1969015cccae697fca5d",
+                    "initiator": "6a3e196769f9130e2b0eb012",
+                    "reason": "Milestone delivery does not match requirements.",
+                    "status": "Opened"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/disputes/{disputeId}": {
+      "get": {
+        "tags": ["Disputes"],
+        "summary": "Get details of a single dispute",
+        "parameters": [
+          { "name": "disputeId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Dispute details retrieved." }
+        }
+      }
+    },
+    "/disputes/{disputeId}/resolve": {
+      "patch": {
+        "tags": ["Disputes"],
+        "summary": "Resolve dispute and distribute funds (Admin role only)",
+        "parameters": [
+          { "name": "disputeId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["resolution", "refundToClientAmount"],
+                "properties": {
+                  "resolution": { "type": "string", "example": "Refund client partially due to missing specifications." },
+                  "refundToClientAmount": { "type": "number", "example": 75 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Dispute resolved successfully." }
+        }
+      }
+    },
+    "/disputes/{disputeId}/close": {
+      "patch": {
+        "tags": ["Disputes"],
+        "summary": "Close dispute (Initiator only)",
+        "parameters": [
+          { "name": "disputeId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Dispute closed successfully." }
+        }
+      }
+    },
+    "/analytics/client": {
+      "get": {
+        "tags": ["Analytics"],
+        "summary": "Get client analytics summary dashboard metrics (Client role only)",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "data": {
+                    "totalSpent": 1500,
+                    "activeContracts": 2,
+                    "completedGigs": 5
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/freelancer": {
+      "get": {
+        "tags": ["Analytics"],
+        "summary": "Get freelancer analytics summary dashboard metrics (Freelancer role only)",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "data": {
+                    "totalEarnings": 3200,
+                    "completedContracts": 7,
+                    "activeWork": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "accessToken"
+      },
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}
