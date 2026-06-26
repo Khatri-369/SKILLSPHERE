@@ -92,7 +92,8 @@ export const registerUser = async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
 
     // 8. Dispatch verification email
-    const verificationUrl = `${config.clientUrl}/api/v1/auth/verify-email?token=${verificationToken}`;
+    const backendUrl = `${req.protocol}://${req.get('host')}`;
+    const verificationUrl = `${backendUrl}/api/v1/auth/verify-email?token=${verificationToken}`;
     await sendEmail({
       email: user.email,
       subject: 'Please verify your SkillSphere email address',
@@ -360,7 +361,8 @@ export const resendVerificationEmail = async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
 
     // 4. Send link
-    const verificationUrl = `${config.clientUrl}/api/v1/auth/verify-email?token=${verificationToken}`;
+    const backendUrl = `${req.protocol}://${req.get('host')}`;
+    const verificationUrl = `${backendUrl}/api/v1/auth/verify-email?token=${verificationToken}`;
     await sendEmail({
       email: user.email,
       subject: 'Please verify your SkillSphere email address',
@@ -408,7 +410,7 @@ export const forgotPassword = async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
 
     // 3. Send reset link
-    const resetUrl = `${config.clientUrl}/api/v1/auth/reset-password?token=${resetToken}`;
+    const resetUrl = `${config.clientUrl}/reset-password?token=${resetToken}`;
     await sendEmail({
       email: user.email,
       subject: 'SkillSphere - Password Reset Request',

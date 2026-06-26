@@ -16,6 +16,7 @@ import Dashboard from './pages/Dashboard';
 import Gigs from './pages/Gigs';
 import FreelancerProposals from './pages/FreelancerProposals';
 import MyProfile from './pages/MyProfile';
+import ForgotPassword from './pages/ForgotPassword';
 
 // Component
 import ProtectedRoute from './components/ProtectedRoute';
@@ -70,6 +71,8 @@ function AppContent() {
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ForgotPassword />} />
         </Route>
 
         {/* Protected Dashboard Layout */}
