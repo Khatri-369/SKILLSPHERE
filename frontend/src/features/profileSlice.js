@@ -5,7 +5,7 @@ export const fetchProfileMe = createAsyncThunk(
   'profile/fetchMe',
   async (_, thunkAPI) => {
     try {
-      const response = await apiClient.get('/freelancers/profile/me');
+      const response = await apiClient.get('/freelancers/me');
       return response.data;
     } catch (error) {
       return thunkAPI.rejectWithValue(error.message);
