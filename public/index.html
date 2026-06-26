@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkillSphere - Auth Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      --glass-bg: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --accent-color: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.4);
+      --success-color: #10b981;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 480px;
+      padding: 20px;
+      perspective: 1000px;
+    }
+
+    .card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      padding: 40px 30px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      text-align: center;
+      transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+      opacity: 0;
+      transform: translateY(30px) scale(0.95);
+      animation: fadeInUp 0.8s forwards cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes fadeInUp {
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .logo {
+      font-size: 2rem;
+      font-weight: 700;
+      background: linear-gradient(to right, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      margin-bottom: 35px;
+      font-weight: 300;
+    }
+
+    /* Auth State Styles */
+    .state-section {
+      display: none;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    .state-section.active {
+      display: block;
+      opacity: 1;
+    }
+
+    /* Unauthenticated UI */
+    .oauth-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      padding: 16px;
+      background: #ffffff;
+      color: #1e293b;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .oauth-btn:hover {
+      background: #f1f5f9;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 15px rgba(255, 255, 255, 0.05);
+    }
+
+    .oauth-btn:active {
+      transform: translateY(0);
+    }
+
+    .google-icon {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* Authenticated UI */
+    .profile-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 25px;
+      text-align: left;
+    }
+
+    .avatar-glow {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-color) 0%, #c084fc 100%);
+      box-shadow: 0 0 20px var(--accent-glow);
+      margin: 0 auto 20px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .user-name {
+      font-size: 1.3rem;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+
+    .user-role-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      color: #a5b4fc;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-align: center;
+      margin: 0 auto 20px auto;
+      display: table;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      font-size: 0.9rem;
+    }
+
+    .info-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .info-label {
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+
+    .info-value {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .badge-verified {
+      color: var(--success-color);
+      font-weight: 600;
+    }
+
+    .logout-btn {
+      width: 100%;
+      padding: 14px;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .logout-btn:hover {
+      background: rgba(239, 68, 68, 0.2);
+      transform: translateY(-1px);
+    }
+
+    /* Loader */
+    .loader {
+      border: 3px solid rgba(255, 255, 255, 0.05);
+      border-top: 3px solid var(--accent-color);
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 0.8s linear infinite;
+      margin: 20px auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="card">
+      <div class="logo">SkillSphere</div>
+      <div class="subtitle">Secure Authentication Portal</div>
+
+      <!-- Loading Indicator -->
+      <div id="loader-section" class="state-section active">
+        <div class="loader"></div>
+        <p style="font-size: 0.85rem; color: var(--text-secondary);">Verifying active session...</p>
+      </div>
+
+      <!-- Unauthenticated View -->
+      <div id="unauth-section" class="state-section">
+        <p style="margin-bottom: 25px; color: var(--text-secondary); font-size: 0.95rem;">
+          Connect your account instantly using Google Single Sign-On (SSO).
+        </p>
+        <a href="/api/v1/auth/google" class="oauth-btn">
+          <svg class="google-icon" viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
+            <g transform="matrix(1, 0, 0, 1, 0, 0)">
+              <path d="M21.35,11.1H12v2.7h5.38C16.88,15.75,14.77,17,12,17c-3.31,0-6-2.69-6-6s2.69-6,6-6c1.66,0,3.14,0.67,4.24,1.76l2.1-2.1C16.59,2.94,14.42,2,12,2C7.03,2,3,6.03,3,11s4.03,9,9,9c5,0,9-4.03,9-9C21,11.75,20.85,11.45,21.35,11.1z" fill="#4285F4"/>
+              <path d="M12,5c1.66,0,3.14,0.67,4.24,1.76l2.1-2.1C16.59,2.94,14.42,2,12,2C7.03,2,3,6.03,3,11s4.03,9,9,9c5,0,9-4.03,9-9c0-0.75-0.15-1.45-0.35-2.1H12V13h5.38C16.88,15.75,14.77,17,12,17c-3.31,0-6-2.69-6-6S8.69,5,12,5z" fill="#34A853" clip-path="polygon(0 0, 24 0, 24 24, 0 24)"/>
+              <path d="M21.35,11.1H12v2.7h5.38C16.88,15.75,14.77,17,12,17c-3.31,0-6-2.69-6-6s2.69-6,6-6c1.66,0,3.14,0.67,4.24,1.76l2.1-2.1C16.59,2.94,14.42,2,12,2C7.03,2,3,6.03,3,11s4.03,9,9,9c5,0,9-4.03,9-9C21,11.75,20.85,11.45,21.35,11.1z" fill="#FBBC05" clip-path="polygon(0 0, 24 0, 24 24, 0 24)"/>
+              <path d="M21.35,11.1H12v2.7h5.38C16.88,15.75,14.77,17,12,17c-3.31,0-6-2.69-6-6s2.69-6,6-6c1.66,0,3.14,0.67,4.24,1.76l2.1-2.1C16.59,2.94,14.42,2,12,2C7.03,2,3,6.03,3,11s4.03,9,9,9c5,0,9-4.03,9-9C21,11.75,20.85,11.45,21.35,11.1z" fill="#EA4335" clip-path="polygon(0 0, 24 0, 24 24, 0 24)"/>
+            </g>
+          </svg>
+          Sign in with Google
+        </a>
+      </div>
+
+      <!-- Authenticated View -->
+      <div id="auth-section" class="state-section">
+        <div class="avatar-glow" id="user-avatar">?</div>
+        <h2 class="user-name" id="user-display-name">Loading...</h2>
+        <div class="user-role-badge" id="user-role">Role</div>
+
+        <div class="profile-card">
+          <div class="info-row">
+            <span class="info-label">User ID</span>
+            <span class="info-value" id="profile-id" style="font-family: monospace; font-size: 0.8rem;">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Email Address</span>
+            <span class="info-value" id="profile-email">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Email Status</span>
+            <span class="info-value badge-verified" id="profile-status">Verified</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Joined</span>
+            <span class="info-value" id="profile-joined">-</span>
+          </div>
+        </div>
+
+        <button onclick="handleLogout()" class="logout-btn">Log Out</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const loaderSection = document.getElementById('loader-section');
+    const unauthSection = document.getElementById('unauth-section');
+    const authSection = document.getElementById('auth-section');
+
+    const switchState = (activeSection) => {
+      [loaderSection, unauthSection, authSection].forEach(section => {
+        section.classList.remove('active');
+      });
+      activeSection.classList.add('active');
+    };
+
+    // On Load: Check if session cookie is active
+    async function checkAuthSession() {
+      try {
+        const response = await fetch('/api/v1/auth/me');
+        if (response.ok) {
+          const body = await response.json();
+          if (body.success && body.data) {
+            renderProfile(body.data);
+            switchState(authSection);
+            return;
+          }
+        }
+        // If not ok or unsuccessful
+        switchState(unauthSection);
+      } catch (err) {
+        console.error('Session verification error:', err);
+        switchState(unauthSection);
+      }
+    }
+
+    function renderProfile(user) {
+      document.getElementById('user-avatar').innerText = user.name ? user.name.charAt(0).toUpperCase() : '?';
+      document.getElementById('user-display-name').innerText = user.name || 'SkillSphere User';
+      document.getElementById('user-role').innerText = user.role || 'Client';
+      
+      document.getElementById('profile-id').innerText = user._id || '-';
+      document.getElementById('profile-email').innerText = user.email || '-';
+      document.getElementById('profile-status').innerText = user.isVerified ? 'Verified' : 'Unverified';
+      document.getElementById('profile-status').className = user.isVerified ? 'info-value badge-verified' : 'info-value';
+      
+      const joinedDate = user.createdAt ? new Date(user.createdAt).toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      }) : '-';
+      document.getElementById('profile-joined').innerText = joinedDate;
+    }
+
+    async function handleLogout() {
+      switchState(loaderSection);
+      try {
+        const response = await fetch('/api/v1/auth/logout', { method: 'POST' });
+        if (response.ok) {
+          switchState(unauthSection);
+        } else {
+          console.error('Logout request failed');
+          checkAuthSession();
+        }
+      } catch (err) {
+        console.error('Logout error:', err);
+        checkAuthSession();
+      }
+    }
+
+    // Trigger check on load
+    window.onload = checkAuthSession;
+  </script>
+</body>
+</html>
