@@ -87,6 +87,19 @@ export const respondToNegotiation = createAsyncThunk(
   }
 );
 
+export const withdrawProposal = createAsyncThunk(
+  'proposal/withdraw',
+  async (proposalId, thunkAPI) => {
+    try {
+      const response = await apiClient.patch(`/proposals/${proposalId}/withdraw`);
+      return response.data;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error.message);
+    }
+  }
+);
+
+
 const initialState = {
   proposals: [],
   myProposals: [],
@@ -153,6 +166,12 @@ const proposalSlice = createSlice({
         }
       })
       .addCase(respondToNegotiation.fulfilled, (state, action) => {
+        const index = state.myProposals.findIndex((p) => p._id === action.payload._id);
+        if (index !== -1) {
+          state.myProposals[index] = action.payload;
+        }
+      })
+      .addCase(withdrawProposal.fulfilled, (state, action) => {
         const index = state.myProposals.findIndex((p) => p._id === action.payload._id);
         if (index !== -1) {
           state.myProposals[index] = action.payload;
