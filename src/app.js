@@ -23,7 +23,7 @@ const swaggerDocument = JSON.parse(
 // Define Global Rate Limiting configuration
 const globalRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: config.env === 'test' ? 10000 : 100,
+  limit: (config.env === 'test' || config.env === 'development') ? 10000 : 100,
   message: {
     success: false,
     message: 'Too many requests from this IP, please try again after 15 minutes',
@@ -35,7 +35,7 @@ const globalRateLimiter = rateLimit({
 // Define strict rate limiting on Auth routes to block brute-force attacks
 const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: config.env === 'test' ? 10000 : 10,
+  limit: (config.env === 'test' || config.env === 'development') ? 10000 : 10,
   message: {
     success: false,
     message: 'Too many authentication attempts from this IP, please try again after 15 minutes',

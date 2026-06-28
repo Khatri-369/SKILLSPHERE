@@ -99,6 +99,21 @@ export const withdrawProposal = createAsyncThunk(
   }
 );
 
+export const updateProposal = createAsyncThunk(
+  'proposal/update',
+  async ({ proposalId, formData }, thunkAPI) => {
+    try {
+      const response = await apiClient.patch(`/proposals/${proposalId}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error.message);
+    }
+  }
+);
+
+
 
 const initialState = {
   proposals: [],
@@ -176,6 +191,21 @@ const proposalSlice = createSlice({
         if (index !== -1) {
           state.myProposals[index] = action.payload;
         }
+      })
+      .addCase(updateProposal.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateProposal.fulfilled, (state, action) => {
+        state.loading = false;
+        const index = state.myProposals.findIndex((p) => p._id === action.payload._id);
+        if (index !== -1) {
+          state.myProposals[index] = action.payload;
+        }
+      })
+      .addCase(updateProposal.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
   },
 });

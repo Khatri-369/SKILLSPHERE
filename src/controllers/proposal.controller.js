@@ -45,12 +45,16 @@ export const applyToGig = async (req, res, next) => {
       return next(error);
     }
 
-    // 4. Verify no duplicate application
+    // 4. Verify no duplicate application (exclude withdrawn proposals)
     const existingProposal = await Proposal.findOne({ gig: gigId, freelancer: freelancerId });
     if (existingProposal) {
-      const error = new Error('You have already submitted a proposal for this gig');
-      error.statusCode = 400;
-      return next(error);
+      if (existingProposal.status !== 'Withdrawn') {
+        const error = new Error('You have already submitted a proposal for this gig');
+        error.statusCode = 400;
+        return next(error);
+      }
+      // If it is Withdrawn, delete it to avoid unique key violation when creating the new one
+      await Proposal.deleteOne({ _id: existingProposal._id });
     }
 
     // 5. Upload files
@@ -340,6 +344,25 @@ export const acceptProposal = async (req, res, next) => {
     proposal.status = 'Accepted';
     proposal.negotiation = undefined; // clear negotiations on accept
     await proposal.save();
+
+    // 4. Update the related Gig status to Closed
+    const gig = await Gig.findById(proposal.gig._id);
+    if (gig) {
+      gig.status = 'Closed';
+      await gig.save();
+    }
+
+    // 5. Automatically reject all other pending/negotiating proposals for this gig
+    await Proposal.updateMany(
+      {
+        gig: proposal.gig._id,
+        _id: { $ne: proposal._id },
+        status: { $in: ['Pending', 'Negotiating'] },
+      },
+      {
+        $set: { status: 'Rejected', negotiation: undefined },
+      }
+    );
 
     return res.status(200).json({
       success: true,

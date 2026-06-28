@@ -17,6 +17,8 @@ import Gigs from './pages/Gigs';
 import FreelancerProposals from './pages/FreelancerProposals';
 import MyProfile from './pages/MyProfile';
 import ForgotPassword from './pages/ForgotPassword';
+import ClientGigs from './pages/ClientGigs';
+import Chat from './pages/Chat';
 
 // Component
 import ProtectedRoute from './components/ProtectedRoute';
@@ -133,7 +135,7 @@ function AppContent() {
             path="/client/gigs"
             element={
               <ProtectedRoute allowedRoles={['Client']}>
-                <ComingSoon title="My Published Gigs" />
+                <ClientGigs />
               </ProtectedRoute>
             }
           />
@@ -141,7 +143,7 @@ function AppContent() {
             path="/chat"
             element={
               <ProtectedRoute allowedRoles={['Client', 'Freelancer']}>
-                <ComingSoon title="Inbox Chat Room" />
+                <Chat />
               </ProtectedRoute>
             }
           />

@@ -295,3 +295,112 @@ export const closeGig = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Get My Gigs (Client)
+ * GET /api/v1/gigs/me
+ */
+export const getMyGigs = async (req, res, next) => {
+  try {
+    const clientId = req.user._id;
+
+    const gigs = await Gig.find({ client: clientId })
+      .populate('client', 'name email role')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Client gigs retrieved successfully',
+      data: gigs,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Submit work for a milestone (Freelancer)
+ * PATCH /api/v1/gigs/:gigId/milestones/:milestoneId/submit
+ */
+export const submitMilestone = async (req, res, next) => {
+  try {
+    const { gigId, milestoneId } = req.params;
+    const { submissionUrl, submissionNotes } = req.body;
+
+    if (!submissionUrl) {
+      const error = new Error('Submission URL or file link is required');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const gig = await Gig.findById(gigId);
+    if (!gig) {
+      const error = new Error('Gig not found');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    const milestone = gig.milestones.id(milestoneId);
+    if (!milestone) {
+      const error = new Error('Milestone not found');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    milestone.status = 'Submitted';
+    milestone.submissionUrl = submissionUrl;
+    milestone.submissionNotes = submissionNotes || '';
+    await gig.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Milestone work submitted successfully',
+      data: gig,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Approve milestone work & release payment (Client)
+ * PATCH /api/v1/gigs/:gigId/milestones/:milestoneId/approve
+ */
+export const approveMilestone = async (req, res, next) => {
+  try {
+    const { gigId, milestoneId } = req.params;
+    const clientId = req.user._id;
+
+    const gig = await Gig.findById(gigId);
+    if (!gig) {
+      const error = new Error('Gig not found');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    if (gig.client.toString() !== clientId.toString()) {
+      const error = new Error('Access denied. You do not own this gig.');
+      error.statusCode = 403;
+      return next(error);
+    }
+
+    const milestone = gig.milestones.id(milestoneId);
+    if (!milestone) {
+      const error = new Error('Milestone not found');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    milestone.status = 'Paid';
+    await gig.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Milestone approved and payment released',
+      data: gig,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

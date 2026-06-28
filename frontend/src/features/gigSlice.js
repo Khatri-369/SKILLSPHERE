@@ -13,6 +13,18 @@ export const searchGigs = createAsyncThunk(
   }
 );
 
+export const fetchMyGigs = createAsyncThunk(
+  'gigs/fetchMyGigs',
+  async (_, thunkAPI) => {
+    try {
+      const response = await apiClient.get('/gigs/me');
+      return response.data;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error.message);
+    }
+  }
+);
+
 export const createGig = createAsyncThunk(
   'gigs/create',
   async (gigData, thunkAPI) => {
@@ -113,9 +125,23 @@ const gigSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
+      // Fetch My Gigs (Client)
+      .addCase(fetchMyGigs.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchMyGigs.fulfilled, (state, action) => {
+        state.loading = false;
+        state.gigs = action.payload;
+      })
+      .addCase(fetchMyGigs.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
       // Create Gig
       .addCase(createGig.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(createGig.fulfilled, (state, action) => {
         state.loading = false;

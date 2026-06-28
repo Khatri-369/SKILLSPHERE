@@ -82,6 +82,46 @@ describe('Proposal APIs', () => {
 
       expect(res.status).toBe(403);
     });
+
+    it('should allow submitting a proposal if a previous proposal was withdrawn', async () => {
+      const { user: client } = await createTestUser('Client');
+      const { user: freelancer, accessToken } = await createTestUser('Freelancer');
+
+      const gig = await Gig.create({
+        client: client._id,
+        title: 'Need a designer',
+        description: 'E-commerce UI/UX project',
+        budget: 500,
+        category: 'Design',
+        deadline: new Date('2026-12-31'),
+        status: 'Published',
+      });
+
+      // Create a withdrawn proposal
+      await Proposal.create({
+        gig: gig._id,
+        freelancer: freelancer._id,
+        bidAmount: 450,
+        estimatedTime: '5 days',
+        description: 'I can do this in 5 days with Figma.',
+        status: 'Withdrawn',
+      });
+
+      // Submit new proposal on same gig
+      const res = await request(app)
+        .post('/api/v1/proposals')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          gigId: gig._id,
+          bidAmount: 420,
+          estimatedTime: '4 days',
+          description: 'New improved offer for Figma design.',
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.bidAmount).toBe(420);
+    });
   });
 
   describe('PATCH /api/v1/proposals/:proposalId/accept & reject', () => {

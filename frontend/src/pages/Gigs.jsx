@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { searchGigs, clearGigErrors } from '../features/gigSlice';
-import { applyToGig, clearProposalErrors } from '../features/proposalSlice';
+import { applyToGig, fetchMyProposals, clearProposalErrors } from '../features/proposalSlice';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Button from '../components/Button';
 import Input from '../components/Input';
@@ -17,7 +17,7 @@ import { Search, SlidersHorizontal, Briefcase, DollarSign, Calendar, Paperclip, 
 const Gigs = () => {
   const dispatch = useDispatch();
   const { gigs, loading: gigsLoading, error: gigsError } = useSelector((state) => state.gigs);
-  const { loading: proposalLoading, error: proposalError } = useSelector((state) => state.proposal);
+  const { loading: proposalLoading, error: proposalError, myProposals } = useSelector((state) => state.proposal);
 
   // Filter States
   const [search, setSearch] = useState('');
@@ -38,6 +38,7 @@ const Gigs = () => {
   // Fetch initial gigs on mount
   useEffect(() => {
     dispatch(searchGigs({ status: 'Published' }));
+    dispatch(fetchMyProposals());
     return () => {
       dispatch(clearGigErrors());
       dispatch(clearProposalErrors());
@@ -192,46 +193,64 @@ const Gigs = () => {
         <div className="glass-panel p-8 text-center text-red-400 rounded-3xl font-semibold border border-red-500/20">
           Failed to load gigs: {gigsError}
         </div>
-      ) : gigs.length === 0 ? (
+      ) : gigs.filter((gig) => {
+        const alreadyApplied = myProposals?.some((p) => {
+          const pGigId = typeof p.gig === 'object' ? p.gig?._id : p.gig;
+          return pGigId === gig._id && p.status !== 'Withdrawn';
+        });
+        return !alreadyApplied;
+      }).length === 0 ? (
         <div className="glass-panel p-12 text-center text-gray-400 rounded-3xl">
           No published gigs match your current criteria. Adjust filters or check back later!
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {gigs.map((gig) => (
-            <div key={gig._id} className="glass-panel p-6 rounded-2xl flex flex-col justify-between space-y-4 hover:border-white/20 transition-all">
-              <div className="space-y-3">
-                <div className="flex justify-between items-start">
-                  <h3 className="text-lg font-black text-white line-clamp-1">{gig.title}</h3>
-                  <Badge status="info">{gig.category}</Badge>
-                </div>
-                <p className="text-sm text-gray-400 line-clamp-3">{gig.description}</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {gig.skillsRequired?.map((skill, idx) => (
-                    <span key={idx} className="px-2 py-0.5 bg-white/5 border border-white/5 text-gray-400 text-3xs rounded-md">
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              </div>
+          {gigs
+            .filter((gig) => {
+              const alreadyApplied = myProposals?.some((p) => {
+                const pGigId = typeof p.gig === 'object' ? p.gig?._id : p.gig;
+                return pGigId === gig._id && p.status !== 'Withdrawn';
+              });
+              return !alreadyApplied;
+            })
+            .map((gig) => {
+              return (
+                <div key={gig._id} className="glass-panel p-6 rounded-2xl flex flex-col justify-between space-y-4 hover:border-white/20 transition-all">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <h3 className="text-lg font-black text-white line-clamp-1">{gig.title}</h3>
+                      <div className="flex items-center space-x-2">
+                        <Badge status="info">{gig.category}</Badge>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-400 line-clamp-3">{gig.description}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {gig.skillsRequired?.map((skill, idx) => (
+                        <span key={idx} className="px-2 py-0.5 bg-white/5 border border-white/5 text-gray-400 text-3xs rounded-md">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
 
-              <div className="pt-4 border-t border-glassBorder flex items-center justify-between">
-                <div className="flex items-center space-x-6">
-                  <div className="flex items-center text-emerald-400 text-sm font-black">
-                    <DollarSign className="h-4 w-4 mr-1" />
-                    ₹{gig.budget}
-                  </div>
-                  <div className="flex items-center text-gray-400 text-xs font-semibold">
-                    <Calendar className="h-4 w-4 mr-1" />
-                    {new Date(gig.deadline).toLocaleDateString()}
+                  <div className="pt-4 border-t border-glassBorder flex items-center justify-between">
+                    <div className="flex items-center space-x-6">
+                      <div className="flex items-center text-emerald-400 text-sm font-black">
+                        <DollarSign className="h-4 w-4 mr-1" />
+                        ₹{gig.budget}
+                      </div>
+                      <div className="flex items-center text-gray-400 text-xs font-semibold">
+                        <Calendar className="h-4 w-4 mr-1" />
+                        {new Date(gig.deadline).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <Button variant="primary" size="small" onClick={() => handleOpenProposal(gig)} className="rounded-xl">
+                      Apply Now
+                    </Button>
                   </div>
                 </div>
-                <Button variant="primary" size="small" onClick={() => handleOpenProposal(gig)} className="rounded-xl">
-                  Apply Now
-                </Button>
-              </div>
-            </div>
-          ))}
+              );
+            })}
         </div>
       )}
 

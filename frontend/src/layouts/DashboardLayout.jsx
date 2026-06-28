@@ -1,7 +1,8 @@
 import React from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { logoutUser } from '../features/authSlice';
+import { logoutUser, setAuthenticated } from '../features/authSlice';
+import apiClient from '../services/api';
 import {
   LayoutDashboard,
   Briefcase,
@@ -24,6 +25,18 @@ const DashboardLayout = () => {
     dispatch(logoutUser()).then(() => {
       navigate('/login');
     });
+  };
+
+  const handleToggle2FA = async () => {
+    try {
+      const nextState = !user?.twoFactorEnabled;
+      const response = await apiClient.post('/auth/toggle-2fa', { enabled: nextState });
+      if (response.success) {
+        dispatch(setAuthenticated({ ...user, twoFactorEnabled: nextState }));
+      }
+    } catch (err) {
+      console.error('Failed to toggle 2FA:', err);
+    }
   };
 
   const menuItems = [
@@ -149,8 +162,23 @@ const DashboardLayout = () => {
         {/* Header */}
         <header className="h-16 glass-panel border-b border-glassBorder flex items-center justify-between px-8 z-10">
           <h1 className="text-lg font-bold text-white">Dashboard View</h1>
-          <div className="text-sm text-gray-400">
-            Account verified: <span className="text-emerald-400 font-semibold">{user?.isVerified ? 'Yes' : 'No'}</span>
+          <div className="flex items-center space-x-6 text-sm text-gray-400">
+            <div>
+              Account verified: <span className="text-emerald-400 font-semibold">{user?.isVerified ? 'Yes' : 'No'}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span>2FA Security:</span>
+              <button
+                onClick={handleToggle2FA}
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer select-none border border-glassBorder hover:scale-105 active:scale-95 ${
+                  user?.twoFactorEnabled
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                    : 'bg-white/5 text-gray-400 border-white/10'
+                }`}
+              >
+                {user?.twoFactorEnabled ? 'ENABLED' : 'DISABLED'}
+              </button>
+            </div>
           </div>
         </header>
 

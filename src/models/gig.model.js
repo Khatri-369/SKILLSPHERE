@@ -16,6 +16,19 @@ const milestoneSchema = new mongoose.Schema({
     required: [true, 'Milestone budget/amount is required'],
     min: [0, 'Milestone amount cannot be negative'],
   },
+  status: {
+    type: String,
+    enum: ['Pending', 'Submitted', 'Paid'],
+    default: 'Pending',
+  },
+  submissionUrl: {
+    type: String,
+    default: '',
+  },
+  submissionNotes: {
+    type: String,
+    default: '',
+  },
 });
 
 const gigSchema = new mongoose.Schema(

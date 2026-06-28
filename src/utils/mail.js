@@ -8,8 +8,8 @@ export const sendEmail = async ({ email, subject, html }) => {
     const hasSmtpCreds = config.smtp.user && config.smtp.pass;
 
     if (!hasSmtpCreds) {
-      // Extract token using regex to write to last-email-token.txt for testing
-      const tokenMatch = html.match(/token=([a-f0-9]+)/);
+      // Extract token or 2FA code using regex to write to last-email-token.txt for testing
+      const tokenMatch = html.match(/token=([a-f0-9]+)/) || html.match(/(?:code|otp) is:?\s*<b>(\d{6})<\/b>/i);
       if (tokenMatch && tokenMatch[1]) {
         try {
           if (!fs.existsSync('logs')) {
@@ -17,7 +17,7 @@ export const sendEmail = async ({ email, subject, html }) => {
           }
           fs.writeFileSync('logs/last-email-token.txt', tokenMatch[1]);
         } catch (err) {
-          console.error('Failed to write email token to log file: ', err);
+          console.error('Failed to write email token/code to log file: ', err);
         }
       }
 

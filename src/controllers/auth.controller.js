@@ -162,13 +162,40 @@ export const loginUser = async (req, res, next) => {
       return next(error);
     }
 
-    // 5. Generate tokens
+    // 5. Check if 2FA is enabled
+    if (user.twoFactorEnabled) {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      user.twoFactorCode = code;
+      user.twoFactorCodeExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+      await user.save({ validateBeforeSave: false });
+
+      // Dispatch 2FA email
+      await sendEmail({
+        email: user.email,
+        subject: 'Your SkillSphere 2FA Code',
+        html: `<h1>SkillSphere 2FA Verification</h1>
+               <p>Hi ${user.name},</p>
+               <p>Your 2-Factor Authentication code is: <b>${code}</b></p>
+               <p>Note: This code expires in 5 minutes.</p>`,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: '2FA code sent to your email. Please verify.',
+        data: {
+          is2FARequired: true,
+          email: user.email,
+        },
+      });
+    }
+
+    // 6. Generate tokens
     const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
 
-    // 6. Get user profile details
-    const loggedInUser = await User.findById(user._id).select('-password -refreshToken -emailVerificationToken -emailVerificationExpiry');
+    // 7. Get user profile details
+    const loggedInUser = await User.findById(user._id).select('-password -refreshToken -emailVerificationToken -emailVerificationExpiry -twoFactorCode -twoFactorCodeExpiry');
 
-    // 7. Set cookies and send standardized response
+    // 8. Set cookies and send standardized response
     return res
       .status(200)
       .cookie('accessToken', accessToken, getCookieOptions())
@@ -502,11 +529,11 @@ export const googleCallback = async (req, res, next) => {
     // 1. Generate access and refresh tokens
     const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(req.user._id);
 
-    // 2. Set tokens in secure HTTP-only cookies and redirect to frontend homepage
+    // 2. Set tokens in secure HTTP-only cookies and redirect to frontend homepage with query token
     return res
       .cookie('accessToken', accessToken, getCookieOptions())
       .cookie('refreshToken', refreshToken, getCookieOptions())
-      .redirect('/');
+      .redirect(`${config.clientUrl}/login?token=${accessToken}`);
   } catch (error) {
     next(error);
   }
@@ -523,6 +550,164 @@ export const getCurrentUser = async (req, res, next) => {
       message: 'Current user profile retrieved successfully',
       data: req.user,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Verify 2FA OTP Code
+ * POST /api/v1/auth/verify-2fa
+ */
+export const verify2FA = async (req, res, next) => {
+  try {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+      const error = new Error('Email and 2FA code are required');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      const error = new Error('User not found');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    if (!user.twoFactorCode || user.twoFactorCode !== code) {
+      const error = new Error('Invalid 2FA verification code');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    if (new Date() > user.twoFactorCodeExpiry) {
+      const error = new Error('2FA verification code has expired');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    // Reset code
+    user.twoFactorCode = undefined;
+    user.twoFactorCodeExpiry = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    // Generate tokens
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
+
+    const loggedInUser = await User.findById(user._id).select('-password -refreshToken -emailVerificationToken -emailVerificationExpiry -twoFactorCode -twoFactorCodeExpiry');
+
+    return res
+      .status(200)
+      .cookie('accessToken', accessToken, getCookieOptions())
+      .cookie('refreshToken', refreshToken, getCookieOptions())
+      .json({
+        success: true,
+        message: '2FA verification successful',
+        data: {
+          user: loggedInUser,
+          accessToken,
+          refreshToken,
+        },
+      });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Toggle 2FA State (Enable/Disable)
+ * POST /api/v1/auth/toggle-2fa
+ */
+export const toggle2FA = async (req, res, next) => {
+  try {
+    const { enabled } = req.body;
+
+    if (enabled === undefined) {
+      const error = new Error('Enabled flag is required');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      const error = new Error('User not found');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    user.twoFactorEnabled = !!enabled;
+    await user.save({ validateBeforeSave: false });
+
+    return res.status(200).json({
+      success: true,
+      message: `2-Factor Authentication has been ${enabled ? 'enabled' : 'disabled'} successfully.`,
+      data: {
+        twoFactorEnabled: user.twoFactorEnabled,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Quick Verify Email (Development Bypass)
+ * POST /api/v1/auth/quick-verify
+ */
+export const quickVerifyEmail = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      const error = new Error('Email is required');
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      const error = new Error('User not found');
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    user.isVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpiry = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    return res.status(200).json({
+      success: true,
+      message: `Account ${email} has been verified successfully.`,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Mock Google Login (Development/Demo Helper)
+ * GET /api/v1/auth/google-mock
+ */
+export const googleMock = async (req, res, next) => {
+  try {
+    const email = 'google.test@skillsphere.com';
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = await User.create({
+        name: 'Google Test User',
+        email,
+        password: crypto.randomBytes(20).toString('hex'),
+        role: 'Client',
+        isVerified: true,
+      });
+    }
+
+    const { accessToken } = await generateAccessAndRefreshTokens(user._id);
+
+    return res.redirect(`${config.clientUrl}/login?token=${accessToken}`);
   } catch (error) {
     next(error);
   }

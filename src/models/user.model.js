@@ -52,6 +52,16 @@ const userSchema = new mongoose.Schema(
     forgotPasswordExpiry: {
       type: Date,
     },
+    twoFactorEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    twoFactorCode: {
+      type: String,
+    },
+    twoFactorCodeExpiry: {
+      type: Date,
+    },
     avatar: {
       type: String,
       default: '',
